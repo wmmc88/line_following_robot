@@ -6,23 +6,23 @@
 #define TRUE 1
 #define FALSE 0
 
-#define VOLTS_TO_HEX(X) (X * 1024 / 5) >> 2
-#define SECS_TO_LONG_DELAY_COUNTS(X) (uns16)X * 8
+#define VOLTS_TO_HEX(X) ((X * 1024 / 5) >> 2)
+#define SECS_TO_LONG_DELAY_COUNTS(X) ((uns16)X * 8)
 
 /**Exponential Moving Average
  * Newest value is weighted by Alpha, where Alpha is 1/N
  * Previous average weighted by 1-Alpha
  **/
-const uns8 HALL_EFFECT_INV_ALPHA = 1 << 4;
-const uns8 IR_INV_ALPHA = 1 << 4;
+#define HALL_EFFECT_INV_ALPHA (1 << 4)
+#define IR_INV_ALPHA (1 << 4)
 
-const uns8 TURN_RIGHT_THRESHOLD = VOLTS_TO_HEX(2);
-const uns8 TURN_LEFT_THRESHOLD = VOLTS_TO_HEX(3);
+#define TURN_RIGHT_THRESHOLD (VOLTS_TO_HEX(2))
+#define TURN_LEFT_THRESHOLD (VOLTS_TO_HEX(3))
 
-const uns8 MAGNET_BLINK_THRESHOLD = VOLTS_TO_HEX(2);
-const uns8 MAGNET_LED_ON_THRESHOLD = VOLTS_TO_HEX(3);
+#define MAGNET_BLINK_THRESHOLD (VOLTS_TO_HEX(2))
+#define MAGNET_LED_ON_THRESHOLD (VOLTS_TO_HEX(3))
 
-const uns8 MAGNET_BLINK_FREQUENCY = 8;
+#define MAGNET_BLINK_FREQUENCY 8
 
 void main(void) {
   Initialization();
@@ -38,8 +38,10 @@ void main(void) {
   while (TRUE) {
 #if ENABLE_MAGNET_DETECTION
     // compute new avg hall reading
-    avg_hall_effect_reading -= avg_hall_effect_reading / HALL_EFFECT_INV_ALPHA;
-    avg_hall_effect_reading += AnalogConvert(ADC_HALL_EFFECT) / HALL_EFFECT_INV_ALPHA;
+    uns8 temp_hall_effect = avg_hall_effect_reading / HALL_EFFECT_INV_ALPHA;
+    avg_hall_effect_reading -= temp_hall_effect;
+    temp_hall_effect = AnalogConvert(ADC_HALL_EFFECT) / HALL_EFFECT_INV_ALPHA;
+    avg_hall_effect_reading += temp_hall_effect;
 
     if (avg_hall_effect_reading < MAGNET_BLINK_THRESHOLD) {
       // Blink for 7 Seconds
@@ -60,8 +62,10 @@ void main(void) {
 
 #if ENABLE_LINE_FOLLOWING
     // compute new avg ir reading
-    avg_ir_diff_reading -= avg_ir_diff_reading / IR_INV_ALPHA;
-    avg_ir_diff_reading += AnalogConvert(ADC_IR_SENSOR) / IR_INV_ALPHA;
+    uns8 temp_ir = avg_ir_diff_reading / IR_INV_ALPHA;
+    avg_ir_diff_reading -= temp_ir;
+    temp_ir = AnalogConvert(ADC_IR_SENSOR) / IR_INV_ALPHA;
+    avg_ir_diff_reading += temp_ir;
 
     if (avg_ir_diff_reading < TURN_RIGHT_THRESHOLD) {
       // Turn Right
