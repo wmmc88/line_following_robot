@@ -25,6 +25,10 @@
 #define MAGNET_SOLID_THRESHOLD (VOLTS_TO_HEX(3))
 #define MAGNET_SOLID_RESET_THRESHOLD (VOLTS_TO_HEX(2.65))
 
+#define SEARCHING_FOR_MAGNET 0
+#define STOPPING_FOR_MAGNET 1
+#define COOLING_DOWN_FROM_MAGNET 2
+
 #define MAGNET_BLINK_FREQUENCY 8
 
 #define SPEED_CHANGE_WAIT 40
@@ -53,6 +57,7 @@ void main(void) {
   //magnet detection
   bit blink_magnet_found = FALSE;
   bit solid_magnet_found = FALSE;
+  uns8 magnet_state = SEARCHING_FOR_MAGNET;
 
   while (TRUE) {
 #if ENABLE_MAGNET_DETECTION
@@ -62,7 +67,7 @@ void main(void) {
     temp_hall_effect = AnalogConvert(ADC_HALL_EFFECT) / HALL_EFFECT_INV_ALPHA;
     avg_hall_effect_reading += temp_hall_effect;
 
-    if (blink_magnet_found) {
+    if (avg_hall_effect_reading < MAGNET_BLINK_THRESHOLD && magnet_state != COOLING_DOWN_FROM_MAGNET) {
       if(right_current_speed == SERVO_RIGHT_STOP && left_current_speed == SERVO_LEFT_STOP) {
         // Blink for 7 Seconds
         uns8 blink_cycles;
@@ -72,35 +77,38 @@ void main(void) {
           OffLED
           LongDelay(SECS_TO_LONG_DELAY_COUNTS(1 / (2 * MAGNET_BLINK_FREQUENCY)));
         }
-      } else if (avg_hall_effect_reading > MAGNET_BLINK_RESET_THRESHOLD) {
-        blink_magnet_found = FALSE;
+        magnet_state = COOLING_DOWN_FROM_MAGNET;
+      } else {
+        blink_magnet_found = TRUE;
+        magnet_state = STOPPING_FOR_MAGNET;
+        right_target_speed = SERVO_RIGHT_STOP;
+        left_target_speed = SERVO_LEFT_STOP;
       }
-
-    } else if (solid_magnet_found) {
+    } else if (avg_hall_effect_reading > MAGNET_SOLID_THRESHOLD && magnet_state != COOLING_DOWN_FROM_MAGNET) {
       if(right_current_speed == SERVO_RIGHT_STOP && left_current_speed == SERVO_LEFT_STOP) {
         // Turn on LED for 7 seconds
         OnLED
         LongDelay(SECS_TO_LONG_DELAY_COUNTS(7));
         OffLED
-      } else if (avg_hall_effect_reading < MAGNET_SOLID_RESET_THRESHOLD) {
-        solid_magnet_found = FALSE;
-      }
-
-    } else {
-      if (avg_hall_effect_reading < MAGNET_BLINK_THRESHOLD) {
-        blink_magnet_found = TRUE;
-        right_target_speed = SERVO_RIGHT_STOP;
-        left_target_speed = SERVO_LEFT_STOP;
-      } else if (avg_hall_effect_reading > MAGNET_SOLID_THRESHOLD) {
+        magnet_state = COOLING_DOWN_FROM_MAGNET;
+      } else {
         solid_magnet_found = TRUE;
+        magnet_state = STOPPING_FOR_MAGNET
         right_target_speed = SERVO_RIGHT_STOP;
         left_target_speed = SERVO_LEFT_STOP;
       }
+    } else if (blink_magnet_found && avg_hall_effect_reading > MAGNET_BLINK_RESET_THRESHOLD ) {
+      blink_magnet_found = FALSE;
+      magnet_state = SEARCHING_FOR_MAGNET;
+    } else if (solid_magnet_found && avg_hall_effect_reading < MAGNET_SOLID_RESET_THRESHOLD) {
+      solid_magnet_found = FALSE;
+      magnet_state = SEARCHING_FOR_MAGNET;
     }
+
 #endif
 
 #if ENABLE_LINE_FOLLOWING
-    if(!solid_magnet_found && !blink_magnet_found) {
+    if(magnet_state != STOPPING_FOR_MAGNET) {
       // compute new avg ir reading
       uns8 temp_ir = avg_ir_diff_reading / IR_INV_ALPHA;
       avg_ir_diff_reading -= temp_ir;
