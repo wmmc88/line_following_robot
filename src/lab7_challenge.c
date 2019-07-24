@@ -14,20 +14,20 @@
  * Previous average weighted by 1-Alpha
  **/
 #define HALL_EFFECT_INV_ALPHA (1 << 2)
-#define IR_INV_ALPHA (1 << 2)
+#define IR_INV_ALPHA (1 << 0)
 
-#define TURN_RIGHT_THRESHOLD (VOLTS_TO_HEX(2.2))
-#define TURN_LEFT_THRESHOLD (VOLTS_TO_HEX(2.8))
+#define TURN_RIGHT_THRESHOLD (VOLTS_TO_HEX(2.3))
+#define TURN_LEFT_THRESHOLD (VOLTS_TO_HEX(2.7))
 
-#define MAGNET_BLINK_THRESHOLD (VOLTS_TO_HEX(2))
+#define MAGNET_BLINK_THRESHOLD (VOLTS_TO_HEX(2)) //1.35
 #define MAGNET_BLINK_RESET_THRESHOLD (VOLTS_TO_HEX(2.35))
 
-#define MAGNET_SOLID_THRESHOLD (VOLTS_TO_HEX(3))
+#define MAGNET_SOLID_THRESHOLD (VOLTS_TO_HEX(3.2)) //3
 #define MAGNET_SOLID_RESET_THRESHOLD (VOLTS_TO_HEX(2.65))
 
 #define MAGNET_BLINK_FREQUENCY 4
 
-#define SPEED_CHANGE_WAIT 100
+#define SPEED_CHANGE_WAIT 150
 
 typedef enum{
   STOPPED, FORWARD, LEFT, RIGHT
@@ -103,11 +103,14 @@ void main(void) {
   uns8 avg_ir_diff_reading = VOLTS_TO_HEX(2.5);
 
   //current motor speeds
-  robot_state_t robot_state = STOPPED;
+  robot_state_t robot_state = FORWARD;
 
   //magnet detection
   bit blink_magnet_found = FALSE;
   bit solid_magnet_found = FALSE;
+
+  rampForward();
+
 
   while (TRUE) {
 #if ENABLE_MAGNET_DETECTION
@@ -124,6 +127,7 @@ void main(void) {
       } else {
         Stop
       }
+      robot_state = STOPPED;
       // Blink for 7 Seconds
       uns8 blink_cycles;
       for (blink_cycles = 0; blink_cycles < 7 * MAGNET_BLINK_FREQUENCY; blink_cycles++) {
@@ -134,6 +138,7 @@ void main(void) {
       }
       //turn back on
       rampForward();
+      robot_state = FORWARD;
       blink_magnet_found = TRUE;
     } else if (avg_hall_effect_reading > MAGNET_SOLID_THRESHOLD && !solid_magnet_found) {
       //stop robot
@@ -142,12 +147,14 @@ void main(void) {
       } else {
         Stop
       }
+      robot_state = STOPPED;
       // Turn on LED for 7 seconds
       OnLED
       LongDelay(SECS_TO_LONG_DELAY_COUNTS(7));
       OffLED
       // turn back on
       rampForward();
+      robot_state = FORWARD;
       solid_magnet_found = TRUE;
     }
 
